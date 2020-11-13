@@ -2,6 +2,8 @@ package messages
 
 import (
 	"bytes"
+	"fmt"
+	"reflect"
 	"text/template"
 
 	"github.com/pkg/errors"
@@ -16,17 +18,17 @@ type (
 )
 
 var (
-	msgMetas = map[string]*msgMeta{}
+	msgMetas = map[reflect.Type]*msgMeta{}
 )
 
 //Add bind message with specific pattern and specific sending locations
-func Add(msg Message, tmplPattern string, locations ...Location) error {
-	id := msg.ID()
-	if meta, ok := msgMetas[id]; ok {
-		return errors.Errorf("duplicate id=%s with name=%s", id, meta.msg.Name())
+func Add(msg Message, locations ...Location) error {
+	typ := reflect.TypeOf(msg)
+	if meta, ok := msgMetas[typ]; ok {
+		return errors.Errorf("duplicate with name=%s", meta.msg.Name())
 	}
 
-	tmpl, err := template.New(id).Parse(tmplPattern)
+	tmpl, err := template.New(fmt.Sprintf("%d", len(msgMetas))).Parse(msg.Template())
 	if err != nil {
 		return errors.WithMessage(err, "bad template")
 	}
@@ -35,7 +37,7 @@ func Add(msg Message, tmplPattern string, locations ...Location) error {
 	if err := tmpl.Execute(&buf, msg); err != nil {
 		return errors.WithMessage(err, "failed to generate tmpl message")
 	}
-	msgMetas[id] = &msgMeta{
+	msgMetas[typ] = &msgMeta{
 		msg:       msg,
 		locations: locations,
 		tmpl:      tmpl,
@@ -45,9 +47,10 @@ func Add(msg Message, tmplPattern string, locations ...Location) error {
 
 //Send msg
 func Send(msg Message) error {
-	meta, ok := msgMetas[msg.ID()]
+	typ := reflect.TypeOf(msg)
+	meta, ok := msgMetas[typ]
 	if !ok {
-		return errors.Errorf("unsupport msg id=%s name=%s", msg.ID(), msg.Name())
+		return errors.Errorf("unsupport msg name=%s", msg.Name())
 	}
 
 	var buf bytes.Buffer
@@ -57,8 +60,7 @@ func Send(msg Message) error {
 
 	text := buf.String()
 	for _, l := range meta.locations {
-		l.Send(msg.ID(), msg.Name(), text)
+		l.Send(msg, text)
 	}
-
 	return nil
 }
