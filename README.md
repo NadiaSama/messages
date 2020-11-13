@@ -1,2 +1,2 @@
 # messages
-send text message to different location(email, lark, phone)
+send text(template) message to different location(email, lark, phone)
