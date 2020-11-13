@@ -23,7 +23,7 @@ var (
 
 //Add bind message with specific pattern and specific sending locations
 func Add(msg Message, locations ...Location) error {
-	typ := reflect.TypeOf(msg)
+	typ := messageType(msg)
 	if meta, ok := msgMetas[typ]; ok {
 		return errors.Errorf("duplicate with name=%s", meta.msg.Name())
 	}
@@ -47,7 +47,7 @@ func Add(msg Message, locations ...Location) error {
 
 //Send msg
 func Send(msg Message) error {
-	typ := reflect.TypeOf(msg)
+	typ := messageType(msg)
 	meta, ok := msgMetas[typ]
 	if !ok {
 		return errors.Errorf("unsupport msg name=%s", msg.Name())
@@ -63,4 +63,9 @@ func Send(msg Message) error {
 		l.Send(msg, text)
 	}
 	return nil
+}
+
+func messageType(msg Message) reflect.Type {
+	val := reflect.Indirect(reflect.ValueOf(msg))
+	return val.Type()
 }
